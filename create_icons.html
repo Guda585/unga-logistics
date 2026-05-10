@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create App Icons - Unga Logistics</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #2d3748;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+        }
+        .icon-preview {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin: 30px 0;
+        }
+        .icon {
+            text-align: center;
+        }
+        .icon-circle {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
+        }
+        .icon-small {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #d4af37, #b8860b);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            font-weight: bold;
+            color: white;
+        }
+        .btn {
+            background: #4299e1;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .btn-success {
+            background: #48bb78;
+        }
+        .download-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+        code {
+            background: #f0f2f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Unga Logistics App Icon</h1>
+        <p>This will create a professional app icon for your PWA</p>
+        
+        <div class="icon-preview">
+            <div class="icon">
+                <div class="icon-circle">U</div>
+                <p>App Icon (120x120)</p>
+            </div>
+            <div class="icon">
+                <div class="icon-small">U</div>
+                <p>Small Icon (60x60)</p>
+            </div>
+        </div>
+        
+        <h3>📱 How the Icon Will Look on Phone:</h3>
+        <div class="icon-preview">
+            <div style="background: #1a202c; padding: 20px; border-radius: 20px;">
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div class="icon-small" style="width: 50px; height: 50px; font-size: 25px;">U</div>
+                    <div style="color: white;">Unga Driver</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="download-section">
+            <h3>📥 Download Icons</h3>
+            <p>Click the buttons below to download icons for your app:</p>
+            <button class="btn" id="download192">Download 192x192 Icon</button>
+            <button class="btn" id="download512">Download 512x512 Icon</button>
+            <button class="btn btn-success" id="downloadAll">Download All Icons (ZIP)</button>
+        </div>
+        
+        <div class="download-section">
+            <h3>📋 Updated manifest.json</h3>
+            <p>Copy this code and replace your <code>manifest.json</code>:</p>
+            <pre style="background: #f0f2f5; padding: 15px; border-radius: 8px; text-align: left; overflow-x: auto;">
+{
+  "name": "Unga Logistics Driver",
+  "short_name": "Unga Driver",
+  "description": "Driver portal for Unga Holdings Logistics",
+  "start_url": "driver_dashboard.php",
+  "display": "standalone",
+  "theme_color": "#d4af37",
+  "background_color": "#f5f7fa",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+            </pre>
+        </div>
+    </div>
+    
+    <script>
+        function generateIcon(size, callback) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#d4af37');
+            gradient.addColorStop(1, '#b8860b');
+            ctx.fillStyle = gradient;
+            
+            // Rounded rectangle
+            const radius = size * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(radius, 0);
+            ctx.lineTo(size - radius, 0);
+            ctx.quadraticCurveTo(size, 0, size, radius);
+            ctx.lineTo(size, size - radius);
+            ctx.quadraticCurveTo(size, size, size - radius, size);
+            ctx.lineTo(radius, size);
+            ctx.quadraticCurveTo(0, size, 0, size - radius);
+            ctx.lineTo(0, radius);
+            ctx.quadraticCurveTo(0, 0, radius, 0);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Letter U
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.5}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('U', size / 2, size / 2);
+            
+            canvas.toBlob(callback, 'image/png');
+        }
+        
+        function downloadIcon(size) {
+            generateIcon(size, (blob) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `icon-${size}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+        
+        document.getElementById('download192').addEventListener('click', () => downloadIcon(192));
+        document.getElementById('download512').addEventListener('click', () => downloadIcon(512));
+        
+        document.getElementById('downloadAll').addEventListener('click', () => {
+            const sizes = [72, 96, 128, 144, 152, 192, 256, 512];
+            sizes.forEach(size => downloadIcon(size));
+        });
+    </script>
+</body>
+</html>
