@@ -85,7 +85,6 @@ if (isset($_POST['run_ga'])) {
         $depot_lat = -1.3167;
         $depot_lng = 36.8500;
         
-        // Sort deliveries by angle/bearing from depot (same direction grouping)
         foreach ($delivery_list as &$d) {
             $d['angle'] = calculateBearing($depot_lat, $depot_lng, $d['lat'], $d['lng']);
         }
@@ -93,7 +92,6 @@ if (isset($_POST['run_ga'])) {
             return $a['angle'] <=> $b['angle'];
         });
         
-        // Group by continuous direction (similar angles)
         $groups = [];
         $currentGroup = [];
         $currentAngle = null;
@@ -126,7 +124,6 @@ if (isset($_POST['run_ga'])) {
             $groups[] = $currentGroup;
         }
         
-        // Split groups by weight and stop limits
         $finalRoutes = [];
         foreach ($groups as $group) {
             $subRoute = [];
@@ -151,7 +148,6 @@ if (isset($_POST['run_ga'])) {
             }
         }
         
-        // Assign vehicles and calculate route details
         $route_details = [];
         foreach ($finalRoutes as $route) {
             $totalWeight = array_sum(array_column($route, 'weight_tonnes'));
@@ -286,10 +282,9 @@ if (isset($_SESSION['ga_routes']) && empty($route_details)) {
         <div class="stat-box"><div class="stat-number"><?php echo $assigned_count; ?></div><div>Assigned</div></div>
     </div>
     
-    <!-- PENDING DELIVERIES TABLE -->
     <div class="section-title">📋 Pending Deliveries</div>
     <div class="table-container">
-        <table>
+         <table>
             <thead>
                 <tr>
                     <th>ID</th>
@@ -307,17 +302,16 @@ if (isset($_SESSION['ga_routes']) && empty($route_details)) {
                 <tr>
                     <td><?php echo $row['id']; ?></td>
                     <td><?php echo $row['delivery_code']; ?></td>
-                    <td style="word-break:break-word;"><?php echo htmlspecialchars($row['customer_name']); ?></td>
+                    <td><?php echo htmlspecialchars($row['customer_name']); ?></td>
                     <td><?php echo $row['weight_tonnes']; ?> t</td>
                 </tr>
                 <?php endwhile; else: ?>
-                <tr><td colspan="4" style="text-align:center;padding:40px;">No pending deliveries. Run GA to plan.</td></tr>
+                <tr><td colspan="4">No pending deliveries. Run GA to plan.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
     </div>
     
-    <!-- ROUTE MAPS -->
     <?php if(!empty($route_details)): ?>
     <div class="section-title">🗺️ Route Maps</div>
     <?php $depot = ['lat' => -1.3167, 'lng' => 36.8500]; $total_routes = count($route_details); foreach($route_details as $index => $route): ?>
@@ -346,10 +340,6 @@ if (isset($_SESSION['ga_routes']) && empty($route_details)) {
         for(var i=0;i<totalRoutes;i++){var card=document.getElementById('card'+i);if(card)card.style.display='none';}
         document.getElementById('card'+index).style.display='block';
         document.getElementById('routeCounter').innerHTML='Route '+(index+1)+' of '+totalRoutes;
-        var prevBtn = document.getElementById('prevBtn');
-        var nextBtn = document.getElementById('nextBtn');
-        if(prevBtn) prevBtn.disabled = (index === 0);
-        if(nextBtn) nextBtn.disabled = (index === totalRoutes-1);
         if(maps[mapId]){maps[mapId].invalidateSize();return;}
         var map = L.map(mapId).setView([depot.lat, depot.lng], 8);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
