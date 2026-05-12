@@ -1,4 +1,5 @@
 <?php
+error_reporting(E_ALL & ~E_DEPRECATED);
 session_name('ADMIN_SESSION');
 session_start();
 include 'config.php';
@@ -29,7 +30,7 @@ function calculateBearing($lat1, $lng1, $lat2, $lng2) {
     $y = sin($dlng) * cos($lat2);
     $x = cos($lat1) * sin($lat2) - sin($lat1) * cos($lat2) * cos($dlng);
     $bearing = (rad2deg(atan2($y, $x)) + 360) % 360;
-    return (int)round($bearing);
+    return (int)floor($bearing);
 }
 
 function getBestVehicle($weight, $vehicles) {
@@ -284,7 +285,7 @@ if (isset($_SESSION['ga_routes']) && empty($route_details)) {
     
     <div class="section-title">📋 Pending Deliveries</div>
     <div class="table-container">
-         <table>
+        <table>
             <thead>
                 <tr>
                     <th>ID</th>
@@ -302,11 +303,11 @@ if (isset($_SESSION['ga_routes']) && empty($route_details)) {
                 <tr>
                     <td><?php echo $row['id']; ?></td>
                     <td><?php echo $row['delivery_code']; ?></td>
-                    <td><?php echo htmlspecialchars($row['customer_name']); ?></td>
+                    <td style="word-break:break-word;"><?php echo htmlspecialchars($row['customer_name']); ?></td>
                     <td><?php echo $row['weight_tonnes']; ?> t</td>
                 </tr>
                 <?php endwhile; else: ?>
-                <tr><td colspan="4">No pending deliveries. Run GA to plan.</td></tr>
+                <tr><td colspan="4" style="text-align:center;padding:40px;">No pending deliveries. Run GA to plan.</td>
                 <?php endif; ?>
             </tbody>
         </table>
