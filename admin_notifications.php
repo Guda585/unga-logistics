@@ -8,14 +8,12 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     exit();
 }
 
-// Mark all as read
 if (isset($_GET['mark_all_read'])) {
     mysqli_query($conn, "UPDATE notifications SET status = 'read' WHERE status = 'unread'");
     header('Location: admin_notifications.php');
     exit();
 }
 
-// Delete single notification
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
     mysqli_query($conn, "DELETE FROM notifications WHERE id = $id");
@@ -23,7 +21,6 @@ if (isset($_GET['delete'])) {
     exit();
 }
 
-// Mark single as read
 if (isset($_GET['read'])) {
     $id = $_GET['read'];
     mysqli_query($conn, "UPDATE notifications SET status = 'read' WHERE id = $id");
@@ -31,8 +28,7 @@ if (isset($_GET['read'])) {
     exit();
 }
 
-// Get all notifications
-$notifications = mysqli_query($conn, "SELECT * FROM notifications ORDER BY created_at DESC");
+$notifications = mysqli_query($conn, "SELECT n.*, d.delivery_code FROM notifications n LEFT JOIN deliveries d ON n.delivery_id = d.id ORDER BY n.created_at DESC");
 $unread_result = mysqli_query($conn, "SELECT COUNT(*) as count FROM notifications WHERE status = 'unread'");
 $unread = mysqli_fetch_assoc($unread_result);
 $unread_count = $unread['count'];
@@ -111,17 +107,18 @@ $unread_count = $unread['count'];
         .notification-content {
             flex: 1;
         }
-        .notification-content a {
-            text-decoration: none;
-            color: #2d3748;
-            display: block;
-        }
-        .notification-content a:hover {
-            color: #4299e1;
-        }
         .notification-message {
             font-size: 14px;
             margin-bottom: 5px;
+        }
+        .notification-link {
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .notification-link:hover .notification-message {
+            color: #4299e1;
+            text-decoration: underline;
         }
         .notification-time {
             font-size: 11px;
@@ -178,34 +175,16 @@ $unread_count = $unread['count'];
         
         <?php if(mysqli_num_rows($notifications) > 0): ?>
             <?php while($row = mysqli_fetch_assoc($notifications)): 
-                // Extract delivery ID from message if present
                 $link = '#';
-                $delivery_id = 0;
-                if (preg_match('/DEL-(\d+)/', $row['message'], $matches)) {
-                    $delivery_code = $matches[0];
-                    // Get delivery ID from delivery code
-                    $del_id_query = mysqli_query($conn, "SELECT id FROM deliveries WHERE delivery_code = '$delivery_code'");
-                    if ($del_id = mysqli_fetch_assoc($del_id_query)) {
-                        $delivery_id = $del_id['id'];
-                        $link = "view_delivery.php?id=" . $delivery_id;
-                    }
-                }
-                // Check if it's an issue notification
-                if (stripos($row['message'], 'Issue reported') !== false) {
+                if ($row['delivery_id'] > 0) {
+                    $link = "view_delivery.php?id=" . $row['delivery_id'];
+                } elseif (strpos($row['message'], 'Issue') !== false) {
                     $link = "admin_issues.php";
-                }
-                // Check if it's a delivery completion
-                if (stripos($row['message'], 'completed') !== false) {
-                    if ($delivery_id > 0) {
-                        $link = "view_delivery.php?id=" . $delivery_id;
-                    } else {
-                        $link = "deliveries.php";
-                    }
                 }
             ?>
                 <div class="notification-card <?php echo $row['status'] == 'unread' ? 'unread' : ''; ?>">
                     <div class="notification-content">
-                        <a href="<?php echo $link; ?>">
+                        <a href="<?php echo $link; ?>" class="notification-link">
                             <div class="notification-message">
                                 <?php echo htmlspecialchars($row['message']); ?>
                             </div>
@@ -224,58 +203,9 @@ $unread_count = $unread['count'];
             <?php endwhile; ?>
         <?php else: ?>
             <div class="empty-state">
-                📭 No notifications yet. When drivers complete deliveries or report issues, they will appear here.
+                📭 No notifications yet.
             </div>
         <?php endif; ?>
     </div>
-    
-    <!-- Notification Sound -->
-    <audio id="notificationSound" preload="auto">
-        <source src="/UNGA-LOGISTICS/sounds/notification.wav" type="audio/wav">
-    </audio>
-    
-    <script>
-    var sound = document.getElementById('notificationSound');
-    var lastUnreadCount = <?php echo $unread_count; ?>;
-    
-    function playNotificationSound() {
-        sound.play().catch(function(error) {
-            console.log('Audio play failed:', error);
-        });
-    }
-    
-    function checkNewNotifications() {
-        fetch('check_notifications.php')
-            .then(response => response.json())
-            .then(data => {
-                if (data.unread_count > lastUnreadCount) {
-                    playNotificationSound();
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1000);
-                }
-                lastUnreadCount = data.unread_count;
-                
-                var badge = document.querySelector('.sidebar .badge');
-                if (badge) {
-                    if (data.unread_count > 0) {
-                        badge.textContent = data.unread_count;
-                        badge.style.display = 'inline-block';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                }
-            })
-            .catch(error => console.error('Error:', error));
-    }
-    
-    setInterval(checkNewNotifications, 15000);
-    
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
-            checkNewNotifications();
-        }
-    });
-    </script>
 </body>
 </html>
