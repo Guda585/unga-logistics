@@ -31,16 +31,6 @@ function calculateBearing($lat1, $lng1, $lat2, $lng2) {
     return (rad2deg(atan2($y, $x)) + 360) % 360;
 }
 
-function isOnSameRoute($point1, $point2, $point3) {
-    // Check if three points roughly follow the same line
-    $bearing1 = calculateBearing($point1['lat'], $point1['lng'], $point2['lat'], $point2['lng']);
-    $bearing2 = calculateBearing($point2['lat'], $point2['lng'], $point3['lat'], $point3['lng']);
-    
-    // If bearings differ by more than 45 degrees, they are NOT on same route
-    $diff = abs($bearing1 - $bearing2);
-    return $diff < 45 || $diff > 315;
-}
-
 function getBestVehicle($weight, $vehicles) {
     $best = null;
     foreach ($vehicles as $v) {
@@ -94,7 +84,7 @@ if (isset($_POST['run_ga'])) {
         $depot_lat = -1.3167;
         $depot_lng = 36.8500;
         
-        // Step 1: Sort deliveries by angle/bearing from depot
+        // Sort deliveries by angle/bearing from depot (same direction grouping)
         foreach ($delivery_list as &$d) {
             $d['angle'] = calculateBearing($depot_lat, $depot_lng, $d['lat'], $d['lng']);
         }
@@ -102,7 +92,7 @@ if (isset($_POST['run_ga'])) {
             return $a['angle'] <=> $b['angle'];
         });
         
-        // Step 2: Group by continuous direction (similar angles)
+        // Group by continuous direction (similar angles)
         $groups = [];
         $currentGroup = [];
         $currentAngle = null;
@@ -112,12 +102,9 @@ if (isset($_POST['run_ga'])) {
                 $currentGroup[] = $d;
                 $currentAngle = $d['angle'];
             } elseif (abs($d['angle'] - $currentAngle) < 60) {
-                // Same direction group (within 60 degrees)
                 $currentGroup[] = $d;
             } else {
-                // New direction - start new group
                 if (!empty($currentGroup)) {
-                    // Sort stops within group by distance from depot
                     usort($currentGroup, function($a, $b) use ($depot_lat, $depot_lng) {
                         $distA = calculateDistance($depot_lat, $depot_lng, $a['lat'], $a['lng']);
                         $distB = calculateDistance($depot_lat, $depot_lng, $b['lat'], $b['lng']);
@@ -138,7 +125,7 @@ if (isset($_POST['run_ga'])) {
             $groups[] = $currentGroup;
         }
         
-        // Step 3: Further split groups by weight limits and stop counts
+        // Split groups by weight and stop limits
         $finalRoutes = [];
         foreach ($groups as $group) {
             $subRoute = [];
@@ -146,7 +133,6 @@ if (isset($_POST['run_ga'])) {
             $currentStops = 0;
             
             foreach ($group as $delivery) {
-                // Check if adding this delivery exceeds limits
                 if ($currentWeight + $delivery['weight_tonnes'] > 30 || $currentStops >= 8) {
                     if (!empty($subRoute)) {
                         $finalRoutes[] = $subRoute;
@@ -164,20 +150,18 @@ if (isset($_POST['run_ga'])) {
             }
         }
         
-        // Step 4: Assign vehicles and calculate route details
+        // Assign vehicles and calculate route details
         $route_details = [];
         foreach ($finalRoutes as $route) {
             $totalWeight = array_sum(array_column($route, 'weight_tonnes'));
             $best_vehicle = getBestVehicle($totalWeight, $vehicle_list);
             
             if ($best_vehicle !== null) {
-                // Assign deliveries to this vehicle and driver
                 foreach ($route as $delivery) {
                     $driver_id_sql = isset($best_vehicle['driver_id']) && $best_vehicle['driver_id'] > 0 ? $best_vehicle['driver_id'] : 'NULL';
                     mysqli_query($conn, "UPDATE deliveries SET vehicle_id = {$best_vehicle['id']}, driver_id = $driver_id_sql WHERE id = {$delivery['id']}");
                 }
                 
-                // Calculate total distance (depot -> stops -> depot)
                 $totalDistance = 0;
                 $prevLat = $depot_lat;
                 $prevLng = $depot_lng;
@@ -203,7 +187,6 @@ if (isset($_POST['run_ga'])) {
                     'num_stops' => count($route)
                 ];
                 
-                // Remove assigned vehicle from available list
                 foreach ($vehicle_list as $idx => $v) {
                     if ($v['id'] == $best_vehicle['id']) {
                         unset($vehicle_list[$idx]);
@@ -225,7 +208,6 @@ if (isset($_POST['run_ga'])) {
 $pending_count = mysqli_num_rows(mysqli_query($conn, "SELECT * FROM deliveries WHERE delivery_date = CURDATE() AND status = 'pending'"));
 $assigned_count = mysqli_num_rows(mysqli_query($conn, "SELECT * FROM deliveries WHERE delivery_date = CURDATE() AND status = 'assigned'"));
 
-// Load route details from session if exists
 if (isset($_SESSION['ga_routes']) && empty($route_details)) {
     $route_details = unserialize($_SESSION['ga_routes']);
 }
@@ -314,40 +296,30 @@ if (isset($_SESSION['ga_routes']) && empty($route_details)) {
                     <th style="width:120px;">Delivery Code</th>
                     <th>Customer</th>
                     <th style="width:100px;">Weight (t)</th>
-                    <th style="width:100px;">Direction</th>
                 </tr>
             </thead>
             <tbody>
                 <?php 
-                $depot_lat = -1.3167;
-                $depot_lng = 36.8500;
-                $pending = mysqli_query($conn, "SELECT d.id, d.delivery_code, d.weight_tonnes, c.name as customer_name, c.lat, c.lng FROM deliveries d LEFT JOIN customers c ON d.customer_id = c.id WHERE d.delivery_date = CURDATE() AND d.status = 'pending' ORDER BY d.id");
+                $pending = mysqli_query($conn, "SELECT d.id, d.delivery_code, d.weight_tonnes, c.name as customer_name FROM deliveries d LEFT JOIN customers c ON d.customer_id = c.id WHERE d.delivery_date = CURDATE() AND d.status = 'pending' ORDER BY d.id");
                 if(mysqli_num_rows($pending) > 0): 
-                    while($row = mysqli_fetch_assoc($pending)):
-                        $bearing = calculateBearing($depot_lat, $depot_lng, $row['lat'], $row['lng']);
-                        $direction = '';
-                        if($bearing > 315 || $bearing <= 45) $direction = '⬆️ North';
-                        elseif($bearing > 45 && $bearing <= 135) $direction = '➡️ East';
-                        elseif($bearing > 135 && $bearing <= 225) $direction = '⬇️ South';
-                        else $direction = '⬅️ West';
+                    while($row = mysqli_fetch_assoc($pending)): 
                 ?>
                 <tr>
                     <td><?php echo $row['id']; ?></td>
                     <td><?php echo $row['delivery_code']; ?></td>
                     <td style="word-break:break-word;"><?php echo htmlspecialchars($row['customer_name']); ?></td>
                     <td><?php echo $row['weight_tonnes']; ?> t</td>
-                    <td><?php echo $direction; ?></td>
                 </tr>
                 <?php endwhile; else: ?>
-                <tr><td colspan="5" style="text-align:center;padding:40px;">No pending deliveries. Run GA to plan.</td></tr>
+                <tr><td colspan="4" style="text-align:center;padding:40px;">No pending deliveries. Run GA to plan.</td>
                 <?php endif; ?>
             </tbody>
-        <tr>
+        </table>
     </div>
     
     <!-- ROUTE MAPS -->
     <?php if(!empty($route_details)): ?>
-    <div class="section-title">🗺️ Route Maps (Same Direction Groups)</div>
+    <div class="section-title">🗺️ Route Maps</div>
     <?php $depot = ['lat' => -1.3167, 'lng' => 36.8500]; $total_routes = count($route_details); foreach($route_details as $index => $route): ?>
     <div class="route-card" id="card<?php echo $index; ?>" style="display:<?php echo $index==0?'block':'none';?>">
         <div class="route-header">
