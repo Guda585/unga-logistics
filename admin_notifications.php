@@ -15,7 +15,7 @@ if (isset($_GET['mark_all_read'])) {
     exit();
 }
 
-// Delete single notification - NO CONFIRMATION
+// Delete single notification
 if (isset($_GET['delete'])) {
     $id = $_GET['delete'];
     mysqli_query($conn, "DELETE FROM notifications WHERE id = $id");
@@ -23,7 +23,7 @@ if (isset($_GET['delete'])) {
     exit();
 }
 
-// Mark single as read - NO CONFIRMATION
+// Mark single as read
 if (isset($_GET['read'])) {
     $id = $_GET['read'];
     mysqli_query($conn, "UPDATE notifications SET status = 'read' WHERE id = $id");
@@ -111,6 +111,14 @@ $unread_count = $unread['count'];
         .notification-content {
             flex: 1;
         }
+        .notification-content a {
+            text-decoration: none;
+            color: #2d3748;
+            display: block;
+        }
+        .notification-content a:hover {
+            color: #4299e1;
+        }
         .notification-message {
             font-size: 14px;
             margin-bottom: 5px;
@@ -169,15 +177,42 @@ $unread_count = $unread['count'];
         </div>
         
         <?php if(mysqli_num_rows($notifications) > 0): ?>
-            <?php while($row = mysqli_fetch_assoc($notifications)): ?>
+            <?php while($row = mysqli_fetch_assoc($notifications)): 
+                // Extract delivery ID from message if present
+                $link = '#';
+                $delivery_id = 0;
+                if (preg_match('/DEL-(\d+)/', $row['message'], $matches)) {
+                    $delivery_code = $matches[0];
+                    // Get delivery ID from delivery code
+                    $del_id_query = mysqli_query($conn, "SELECT id FROM deliveries WHERE delivery_code = '$delivery_code'");
+                    if ($del_id = mysqli_fetch_assoc($del_id_query)) {
+                        $delivery_id = $del_id['id'];
+                        $link = "view_delivery.php?id=" . $delivery_id;
+                    }
+                }
+                // Check if it's an issue notification
+                if (stripos($row['message'], 'Issue reported') !== false) {
+                    $link = "admin_issues.php";
+                }
+                // Check if it's a delivery completion
+                if (stripos($row['message'], 'completed') !== false) {
+                    if ($delivery_id > 0) {
+                        $link = "view_delivery.php?id=" . $delivery_id;
+                    } else {
+                        $link = "deliveries.php";
+                    }
+                }
+            ?>
                 <div class="notification-card <?php echo $row['status'] == 'unread' ? 'unread' : ''; ?>">
                     <div class="notification-content">
-                        <div class="notification-message">
-                            <?php echo htmlspecialchars($row['message']); ?>
-                        </div>
-                        <div class="notification-time">
-                            <?php echo date('d/m/Y H:i', strtotime($row['created_at'])); ?>
-                        </div>
+                        <a href="<?php echo $link; ?>">
+                            <div class="notification-message">
+                                <?php echo htmlspecialchars($row['message']); ?>
+                            </div>
+                            <div class="notification-time">
+                                <?php echo date('d/m/Y H:i', strtotime($row['created_at'])); ?>
+                            </div>
+                        </a>
                     </div>
                     <div class="notification-actions">
                         <?php if($row['status'] == 'unread'): ?>
