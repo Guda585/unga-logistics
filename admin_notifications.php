@@ -178,6 +178,8 @@ $unread_count = $unread['count'];
                 $link = '#';
                 if ($row['delivery_id'] > 0) {
                     $link = "view_delivery.php?id=" . $row['delivery_id'];
+                } elseif ($row['issue_id'] > 0) {
+                    $link = "view_issue.php?id=" . $row['issue_id'];
                 } elseif (strpos($row['message'], 'Issue') !== false) {
                     $link = "admin_issues.php";
                 }
