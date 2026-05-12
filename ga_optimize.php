@@ -1,5 +1,5 @@
 <?php
-error_reporting(E_ALL & ~E_DEPRECATED);
+error_reporting(0);
 session_name('ADMIN_SESSION');
 session_start();
 include 'config.php';
@@ -21,16 +21,6 @@ function calculateDistance($lat1, $lng1, $lat2, $lng2) {
     $a = sin($dlat/2) * sin($dlat/2) + cos($lat1) * cos($lat2) * sin($dlng/2) * sin($dlng/2);
     $c = 2 * atan2(sqrt($a), sqrt(1-$a));
     return round($R * $c, 1);
-}
-
-function calculateBearing($lat1, $lng1, $lat2, $lng2) {
-    $lat1 = deg2rad($lat1);
-    $lat2 = deg2rad($lat2);
-    $dlng = deg2rad($lng2 - $lng1);
-    $y = sin($dlng) * cos($lat2);
-    $x = cos($lat1) * sin($lat2) - sin($lat1) * cos($lat2) * cos($dlng);
-    $bearing = (rad2deg(atan2($y, $x)) + 360) % 360;
-    return (int)floor($bearing);
 }
 
 function getBestVehicle($weight, $vehicles) {
@@ -86,47 +76,28 @@ if (isset($_POST['run_ga'])) {
         $depot_lat = -1.3167;
         $depot_lng = 36.8500;
         
-        foreach ($delivery_list as &$d) {
-            $d['angle'] = calculateBearing($depot_lat, $depot_lng, $d['lat'], $d['lng']);
-        }
-        usort($delivery_list, function($a, $b) {
-            return $a['angle'] <=> $b['angle'];
-        });
-        
+        // Simple grouping by region/county from customer name
         $groups = [];
-        $currentGroup = [];
-        $currentAngle = null;
-        
         foreach ($delivery_list as $d) {
-            if ($currentAngle === null) {
-                $currentGroup[] = $d;
-                $currentAngle = $d['angle'];
-            } elseif (abs((int)$d['angle'] - (int)$currentAngle) < 60) {
-                $currentGroup[] = $d;
-            } else {
-                if (!empty($currentGroup)) {
-                    usort($currentGroup, function($a, $b) use ($depot_lat, $depot_lng) {
-                        $distA = calculateDistance($depot_lat, $depot_lng, $a['lat'], $a['lng']);
-                        $distB = calculateDistance($depot_lat, $depot_lng, $b['lat'], $b['lng']);
-                        return $distA <=> $distB;
-                    });
-                    $groups[] = $currentGroup;
-                }
-                $currentGroup = [$d];
-                $currentAngle = $d['angle'];
+            // Extract county/region from customer name (text in parentheses)
+            preg_match('/\(([^)]+)\)/', $d['customer_name'], $matches);
+            $region = isset($matches[1]) ? $matches[1] : 'Other';
+            if (!isset($groups[$region])) {
+                $groups[$region] = [];
             }
-        }
-        if (!empty($currentGroup)) {
-            usort($currentGroup, function($a, $b) use ($depot_lat, $depot_lng) {
-                $distA = calculateDistance($depot_lat, $depot_lng, $a['lat'], $a['lng']);
-                $distB = calculateDistance($depot_lat, $depot_lng, $b['lat'], $b['lng']);
-                return $distA <=> $distB;
-            });
-            $groups[] = $currentGroup;
+            $groups[$region][] = $d;
         }
         
+        // Sort deliveries within each group by weight (largest first)
+        foreach ($groups as &$group) {
+            usort($group, function($a, $b) {
+                return $b['weight_tonnes'] <=> $a['weight_tonnes'];
+            });
+        }
+        
+        // Split groups by weight and stop limits
         $finalRoutes = [];
-        foreach ($groups as $group) {
+        foreach ($groups as $region => $group) {
             $subRoute = [];
             $currentWeight = 0;
             $currentStops = 0;
@@ -149,6 +120,7 @@ if (isset($_POST['run_ga'])) {
             }
         }
         
+        // Assign vehicles and calculate route details
         $route_details = [];
         foreach ($finalRoutes as $route) {
             $totalWeight = array_sum(array_column($route, 'weight_tonnes'));
@@ -301,13 +273,13 @@ if (isset($_SESSION['ga_routes']) && empty($route_details)) {
                     while($row = mysqli_fetch_assoc($pending)): 
                 ?>
                 <tr>
-                    <td><?php echo $row['id']; ?></td>
-                    <td><?php echo $row['delivery_code']; ?></td>
-                    <td style="word-break:break-word;"><?php echo htmlspecialchars($row['customer_name']); ?></td>
-                    <td><?php echo $row['weight_tonnes']; ?> t</td>
+                    <td><?php echo $row['id']; ?></a></td>
+                    <td><?php echo $row['delivery_code']; ?></a></td>
+                    <td><?php echo htmlspecialchars($row['customer_name']); ?></a></td>
+                    <td><?php echo $row['weight_tonnes']; ?> t</a></td>
                 </tr>
                 <?php endwhile; else: ?>
-                <tr><td colspan="4" style="text-align:center;padding:40px;">No pending deliveries. Run GA to plan.</td>
+                <tr><td colspan="4">No pending deliveries. Run GA to plan.</a></tr>
                 <?php endif; ?>
             </tbody>
         </table>
